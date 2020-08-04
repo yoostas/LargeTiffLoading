@@ -1,0 +1,10 @@
+/* 
+  Localizable.strings
+  LargeTiffLoading
+
+  Created by Stanislav's MacBook Pro on 17.07.2020.
+  Copyright © 2020 Stanislav's MacBook Pro. All rights reserved.
+*/
+"warning.title" = "Warning";
+"warning.text" = "Nothing shared";
+"warning.ok.title" = "Ok";
