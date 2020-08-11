@@ -7,11 +7,24 @@
 //
 
 import Foundation
+import UIKit
+enum ImageModelState {
+  case new, resized, cached
+}
 struct ImageModel {
     let name:String
     let format:String
+    let imageViewWidth = UIScreen.main.bounds.size.width-40.0
     let fileUrl:URL
-    var imageHeight:Float?
+    var imageHeight:Float {
+        guard let image = UIImage(contentsOfFile: self.fileUrl.path) else {
+            return 0.0
+        }
+        let ratio = image.size.width/self.imageViewWidth
+        return Float(image.size.height/ratio)
+    }
+    var state = ImageModelState.new
+    var image = UIImage(named: "placeholderImage")
     
     
     public init?(filename:String?, documentsDirectory:String) {
@@ -31,9 +44,4 @@ struct ImageModel {
             return nil
         }
     }
-    
-    mutating func setImageHeight(height:Float) {
-        self.imageHeight = height
-    }
-    
 }

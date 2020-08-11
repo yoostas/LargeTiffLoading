@@ -48,9 +48,20 @@ extension UncompressedImageListViewController {
             fatalError("ImageCell not found")
         }
         
-        let imageVm = self.model.imageAtIndex(indexPath.row)
-        cell.setup(viewModel: imageVm)
+//        let imageVm = self.model.imageAtIndex(indexPath.row)
+//        cell.setup(viewModel: imageVm)
         
+        let model = self.model.images[indexPath.row]
+        cell.largeImageView.image = model.image
+        switch model.state {
+        case .cached:
+            cell.activityIndicator.stopAnimating()
+        case .new, .resized:
+            cell.activityIndicator.startAnimating()
+            if !tableView.isDragging && !tableView.isDecelerating {
+                self.model.startOperations(for: model, at: indexPath)
+            }
+        }
         return cell
     }
     
@@ -60,6 +71,30 @@ extension UncompressedImageListViewController {
         return CGFloat(self.model.heightForRow(at: indexPath.row))
     }
     
+}
+
+ //MARK: ScrollView delegates handler
+
+extension UncompressedImageListViewController {
+    override func scrollViewWillBeginDragging(_ scrollView: UIScrollView) {
+        self.model.suspendAllOperations()
+    }
+    
+    override func scrollViewDidEndDragging(_ scrollView: UIScrollView, willDecelerate decelerate: Bool) {
+        if !decelerate {
+            if let indexArray = self.tableView.indexPathsForVisibleRows {
+                self.model.loadImagesForOnscreenCells(pathsArray: indexArray)
+                self.model.resumeAllOperations()
+            }
+        }
+    }
+    
+    override func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {
+        if let indexArray = self.tableView.indexPathsForVisibleRows {
+            self.model.loadImagesForOnscreenCells(pathsArray: indexArray)
+            self.model.resumeAllOperations()
+        }
+    }
 }
 // MARK: some staff for alerts
 
@@ -99,6 +134,12 @@ extension UncompressedImageListViewController: UncompressedImageListViewModelDel
     func reloadTable() {
          DispatchQueue.main.async {
             self.tableView.reloadData()
+        }
+    }
+    
+    func reloadRows(indexPath:IndexPath) {
+        DispatchQueue.main.async {
+            self.tableView.reloadRows(at: [indexPath], with: .fade)
         }
     }
 }

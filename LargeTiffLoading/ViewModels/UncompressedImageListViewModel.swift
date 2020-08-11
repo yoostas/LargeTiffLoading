@@ -13,12 +13,13 @@ protocol UncompressedImageListViewModelDelegate: AnyObject {
     func showActivity()
     func hideActivity()
     func sendAlertMessage(message:String)
+    func reloadRows(indexPath:IndexPath)
 }
 class UncompressedImageListViewModel {
     let docManager = DocumentsManager()
-    let imageManager = ImageProcessingManager()
     var images:[ImageModel] = []
     weak var delegate: UncompressedImageListViewModelDelegate?
+    let pendingOperations = PendingOperations()
 }
 
 
@@ -43,34 +44,36 @@ extension UncompressedImageListViewModel {
     /// - Parameter fileNames: array of filenames from shared folder
     func processFileNames(fileNames:[String]) {
         for name in fileNames {
-            if var model = ImageModel(filename: name, documentsDirectory: self.docManager.documentsDirectory) {
+            if let model = ImageModel(filename: name, documentsDirectory: self.docManager.documentsDirectory) {
                 if !self.images.contains(where: {$0.name == model.name}) {
-                    if let image = self.imageManager.processImage(at: model.fileUrl, with: model.name+"."+model.format) {
-                        model.setImageHeight(height: Float(image.size.height))
-                        self.addModel(model: model, image: image)
-                    }
+                    self.images.append(model)
+//                    if let image = self.imageManager.processImage(at: model.fileUrl, with: model.name+"."+model.format) {
+//                        model.setImageHeight(height: Float(image.size.height))
+//                        self.addModel(model: model, image: image)
+//                    }
                 }
             }
         }
         if fileNames.count == 0 {
             self.delegate?.sendAlertMessage(message: NSLocalizedString("warning.text", comment: ""))
         }
+        self.delegate?.reloadTable()
         self.delegate?.hideActivity()
     }
     
-    /// Method for filling the collection, and cacheing resized photo. This kind of ptimisation is for old devices support. Checked with iPhone 6s
-    /// - Parameters:
-    ///   - model: imade model
-    ///   - image: resized image
-    func addModel(model:ImageModel, image:UIImage)  {
-        DispatchQueue.main.async {
-            let cachedImage = CachedImage()
-            cachedImage.image = image
-            self.imageManager.imageCache.setObject(cachedImage, forKey: NSString(string: model.name+"."+model.format))
-            self.images.append(model)
-            self.delegate?.reloadTable()
-        }
-    }
+//    /// Method for filling the collection, and cacheing resized photo. This kind of ptimisation is for old devices support. Checked with iPhone 6s
+//    /// - Parameters:
+//    ///   - model: imade model
+//    ///   - image: resized image
+//    func addModel(model:ImageModel, image:UIImage)  {
+//        DispatchQueue.main.async {
+//            let cachedImage = CachedImage()
+//            cachedImage.image = image
+//            self.imageManager.imageCache.setObject(cachedImage, forKey: NSString(string: model.name+"."+model.format))
+//            self.images.append(model)
+//            self.delegate?.reloadTable()
+//        }
+//    }
 }
 
 
@@ -85,19 +88,107 @@ extension UncompressedImageListViewModel {
         return self.images.count
     }
     
-    func imageAtIndex(_ index: Int) -> ImageViewModel {
-        let image = self.images[index]
-        let imageVM = ImageViewModel(image)
-        imageVM.image = self.imageManager.imageCache.object(forKey: NSString(string: imageVM.fullName))?.image
-        return imageVM
-    }
+//    func imageAtIndex(_ index: Int) -> ImageViewModel {
+//        let image = self.images[index]
+//        let imageVM = ImageViewModel(image)
+//        imageVM.image = self.imageManager.imageCache.object(forKey: NSString(string: imageVM.fullName))?.image
+//        return imageVM
+//    }
     
     func heightForRow(at index:Int) -> Float {
         let image = self.images[index]
-        if let height = image.imageHeight {
-            return height+26.0
+        if image.imageHeight > 0.0 {
+            return image.imageHeight+26.0
         }
         return 0.0
+    }
+}
+
+// MARK: Operations setup
+extension UncompressedImageListViewModel {
+    
+    func loadImagesForOnscreenCells(pathsArray:[IndexPath]) {
+        var allPendingOperations = Set(pendingOperations.resizingInProgress.keys)
+        allPendingOperations.formUnion(pendingOperations.cachingInProgress.keys)
+        var toBeCancelled = allPendingOperations
+        let visiblePaths = Set(pathsArray)
+        toBeCancelled.subtract(visiblePaths)
+        
+        var toBeStarted = visiblePaths
+        toBeStarted.subtract(allPendingOperations)
+        
+        for indexPath in toBeCancelled {
+            if let pendingResizing = self.pendingOperations.resizingInProgress[indexPath] {
+                pendingResizing.cancel()
+            }
+            
+            self.pendingOperations.resizingInProgress.removeValue(forKey: indexPath)
+            
+            if let pendingCaching = self.pendingOperations.cachingInProgress[indexPath] {
+                pendingCaching.cancel()
+            }
+            self.pendingOperations.cachingInProgress.removeValue(forKey: indexPath)
+        }
+        
+        for indexPath in toBeStarted {
+            let imageToProcess = self.images[indexPath.row]
+            self.startOperations(for: imageToProcess, at: indexPath)
+        }
+     }
+    
+    func suspendAllOperations() {
+        self.pendingOperations.resizingQueue.isSuspended = true
+        self.pendingOperations.cachingQueue.isSuspended = true
+    }
+    
+    func resumeAllOperations() {
+        self.pendingOperations.resizingQueue.isSuspended = false
+        self.pendingOperations.cachingQueue.isSuspended = false
+    }
+    
+    func startOperations(for model: ImageModel, at indexPath: IndexPath) {
+        switch model.state {
+        case .new:
+            self.startResizing(for: model, at: indexPath)
+        case .resized:
+            self.startCaching(for: model, at: indexPath)
+        default:
+            print("Do noting")
+        }
+    }
+    
+    func startResizing(for model: ImageModel, at indexPath: IndexPath) {
+        guard self.pendingOperations.resizingInProgress[indexPath] == nil else {
+            return
+        }
+        let resizer = ImageResizing(model)
+        resizer.completionBlock = {
+            if resizer.isCancelled {
+                return
+            }
+            self.pendingOperations.resizingInProgress.removeValue(forKey: indexPath)
+            self.images[indexPath.row] = resizer.photoModel
+            self.delegate?.reloadRows(indexPath: indexPath)
+        }
+        self.pendingOperations.resizingInProgress[indexPath] = resizer
+        self.pendingOperations.resizingQueue.addOperation(resizer)
+    }
+    
+    func startCaching(for model: ImageModel, at indexPath: IndexPath) {
+        guard self.pendingOperations.cachingInProgress[indexPath] == nil else {
+            return
+        }
+        let cacher = ImageCaching(model)
+        cacher.completionBlock = {
+            if cacher.isCancelled {
+                return
+            }
+            self.pendingOperations.cachingInProgress.removeValue(forKey: indexPath)
+            self.images[indexPath.row] = cacher.photoModel
+            self.delegate?.reloadRows(indexPath: indexPath)
+        }
+        self.pendingOperations.cachingInProgress[indexPath] = cacher
+        self.pendingOperations.cachingQueue.addOperation(cacher)
     }
 }
 
@@ -126,4 +217,23 @@ extension ImageViewModel {
     var fullName: String {
         return self.imageModel.name+"."+self.imageModel.format
     }
+}
+
+
+class PendingOperations {
+    lazy var resizingInProgress: [IndexPath: Operation] = [:]
+    lazy var resizingQueue: OperationQueue = {
+        var queue = OperationQueue()
+        queue.name = "Image Resizing queue"
+        queue.maxConcurrentOperationCount = 1
+        return queue
+    }()
+    
+    lazy var cachingInProgress: [IndexPath: Operation] = [:]
+    lazy var cachingQueue: OperationQueue = {
+        var queue = OperationQueue()
+        queue.name = "Image Caching queue"
+        queue.maxConcurrentOperationCount = 1
+        return queue
+    }()
 }

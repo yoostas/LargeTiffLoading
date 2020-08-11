@@ -11,6 +11,7 @@ import UIKit
 class ImageCell: UITableViewCell {
     @IBOutlet weak var largeImageView: UIImageView!
     var imageVm: ImageViewModel?
+    @IBOutlet weak var activityIndicator: UIActivityIndicatorView!
     override func awakeFromNib() {
         super.awakeFromNib()
         // Initialization code
@@ -20,24 +21,24 @@ class ImageCell: UITableViewCell {
         super.setSelected(selected, animated: animated)
     }
     
-    override func prepareForReuse() {
-        self.largeImageView.image = nil
-        self.imageVm = nil
-    }
+//    override func prepareForReuse() {
+//        self.largeImageView.image = nil
+//        self.imageVm = nil
+//    }
     
-    /// Cell setup method
-    /// - Parameter viewModel: model for cell
-    func setup(viewModel:ImageViewModel) {
-        self.imageVm = viewModel
-        if let image = self.imageVm?.image {
-            DispatchQueue.main.async  {
-                UIView.transition(with: self.largeImageView,
-                                duration: 1.0,
-                                options: [.curveEaseOut, .transitionCrossDissolve],
-                                animations: {
-                                    self.largeImageView.image = image
-                                })
-            }
-        }
-    }
+//    /// Cell setup method
+//    /// - Parameter viewModel: model for cell
+//    func setup(viewModel:ImageViewModel) {
+//        self.imageVm = viewModel
+//        if let image = self.imageVm?.image {
+//            DispatchQueue.main.async  {
+//                UIView.transition(with: self.largeImageView,
+//                                duration: 1.0,
+//                                options: [.curveEaseOut, .transitionCrossDissolve],
+//                                animations: {
+//                                    self.largeImageView.image = image
+//                                })
+//            }
+//        }
+//    }
 }

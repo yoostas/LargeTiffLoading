@@ -25,15 +25,22 @@
                                         <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="Z1O-qD-6gc">
                                             <rect key="frame" x="20" y="13" width="374" height="128"/>
                                         </imageView>
+                                        <activityIndicatorView opaque="NO" contentMode="scaleToFill" horizontalHuggingPriority="750" verticalHuggingPriority="750" hidesWhenStopped="YES" animating="YES" style="medium" translatesAutoresizingMaskIntoConstraints="NO" id="oc8-hj-9bz">
+                                            <rect key="frame" x="197" y="67" width="20" height="20"/>
+                                            <color key="color" systemColor="systemPinkColor" red="1" green="0.1764705882" blue="0.33333333329999998" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                                        </activityIndicatorView>
                                     </subviews>
                                     <constraints>
                                         <constraint firstItem="Z1O-qD-6gc" firstAttribute="leading" secondItem="qk7-b0-NbS" secondAttribute="leadingMargin" id="2T2-j0-ium"/>
                                         <constraint firstItem="Z1O-qD-6gc" firstAttribute="top" secondItem="qk7-b0-NbS" secondAttribute="topMargin" constant="2" id="5ZF-Fa-1lR"/>
+                                        <constraint firstItem="oc8-hj-9bz" firstAttribute="centerX" secondItem="Z1O-qD-6gc" secondAttribute="centerX" id="RjG-RE-UGI"/>
+                                        <constraint firstItem="oc8-hj-9bz" firstAttribute="centerY" secondItem="Z1O-qD-6gc" secondAttribute="centerY" id="Shq-ZW-5pQ"/>
                                         <constraint firstAttribute="trailingMargin" secondItem="Z1O-qD-6gc" secondAttribute="trailing" id="aDr-OI-X26"/>
                                         <constraint firstAttribute="bottomMargin" secondItem="Z1O-qD-6gc" secondAttribute="bottom" constant="2" id="ns1-3n-SEu"/>
                                     </constraints>
                                 </tableViewCellContentView>
                                 <connections>
+                                    <outlet property="activityIndicator" destination="oc8-hj-9bz" id="fUU-2y-2yf"/>
                                     <outlet property="largeImageView" destination="Z1O-qD-6gc" id="VZh-hM-npn"/>
                                 </connections>
                             </tableViewCell>
